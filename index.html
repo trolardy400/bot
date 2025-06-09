@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bot de Gestión de Servidor Minecraft</title>
+    <!-- Incluye Tailwind CSS para un estilo rápido y responsivo -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Estilos personalizados para la fuente y el color de fondo */
+        body {
+            font-family: 'Inter', sans-serif; /* Fuente Inter para una apariencia moderna */
+            background-color: #1a202c; /* Fondo oscuro */
+            color: #e2e8f0; /* Color de texto claro */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 1rem;
+            box-sizing: border-box;
+        }
+        .container {
+            background-color: #2d3748; /* Fondo más claro para el contenedor principal */
+            border-radius: 1rem; /* Esquinas redondeadas */
+            padding: 2rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08); /* Sombra sutil */
+            width: 100%;
+            max-width: 600px; /* Ancho máximo para el contenedor */
+        }
+        input, button, select {
+            border-radius: 0.5rem; /* Esquinas redondeadas para inputs y botones */
+        }
+        button {
+            transition: background-color 0.2s ease-in-out, transform 0.1s ease-in-out; /* Transición suave para botones */
+        }
+        button:hover {
+            transform: translateY(-2px); /* Efecto ligero de elevación al pasar el ratón */
+        }
+        /* Colores específicos para los botones */
+        .btn-green {
+            background-color: #48bb78; /* Verde para iniciar */
+        }
+        .btn-green:hover {
+            background-color: #38a169;
+        }
+        .btn-red {
+            background-color: #ef4444; /* Rojo para detener */
+        }
+        .btn-red:hover {
+            background-color: #dc2626;
+        }
+        .btn-blue {
+            background-color: #63b3ed; /* Azul para estado */
+        }
+        .btn-blue:hover {
+            background-color: #4299e1;
+        }
+        .btn-orange {
+            background-color: #f6ad55; /* Naranja para configurar */
+        }
+        .btn-orange:hover {
+            background-color: #ed8936;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-3xl font-bold text-center mb-6 text-white">Gestor de Servidor Minecraft</h1>
+        <p class="text-sm text-gray-400 mb-6 text-center">
+            <strong>Importante:</strong> Esta es solo la interfaz de usuario (front-end). Para que funcione realmente,
+            necesitas un <strong>servidor backend</strong> (por ejemplo, en Python, Node.js o Java)
+            que se encargue de interactuar con tu servidor de Minecraft. Este HTML enviaría solicitudes a ese backend.
+        </p>
+
+        <div class="mb-4">
+            <label for="serverIp" class="block text-gray-300 text-sm font-bold mb-2">Dirección IP del Servidor:</label>
+            <input type="text" id="serverIp" value="localhost"
+                   class="shadow appearance-none border rounded w-full py-2 px-3 bg-gray-700 text-gray-200 leading-tight focus:outline-none focus:shadow-outline">
+        </div>
+
+        <div class="mb-6">
+            <label for="serverPort" class="block text-gray-300 text-sm font-bold mb-2">Puerto del Servidor:</label>
+            <input type="text" id="serverPort" value="25565"
+                   class="shadow appearance-none border rounded w-full py-2 px-3 bg-gray-700 text-gray-200 leading-tight focus:outline-none focus:shadow-outline">
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+            <button id="startButton"
+                    class="btn-green text-white font-bold py-3 px-4 rounded focus:outline-none focus:shadow-outline">
+                Iniciar Servidor
+            </button>
+            <button id="stopButton"
+                    class="btn-red text-white font-bold py-3 px-4 rounded focus:outline-none focus:shadow-outline">
+                Detener Servidor
+            </button>
+            <button id="statusButton"
+                    class="btn-blue text-white font-bold py-3 px-4 rounded focus:outline-none focus:shadow-outline">
+                Ver Estado
+            </button>
+        </div>
+
+        <div class="bg-gray-800 p-4 rounded-lg mb-4">
+            <h3 class="text-lg font-bold text-gray-200 mb-2">Registro de Eventos:</h3>
+            <pre id="logOutput" class="text-sm text-gray-300 overflow-auto h-40 bg-gray-900 p-3 rounded-md"></pre>
+        </div>
+
+        <div class="text-sm text-gray-500 text-center mt-6">
+            Versión de Minecraft: 1.21.4 Paper | Desarrollado con ❤️
+        </div>
+    </div>
+
+    <script>
+        // Obtener referencias a los elementos del DOM
+        const serverIpInput = document.getElementById('serverIp');
+        const serverPortInput = document.getElementById('serverPort');
+        const startButton = document.getElementById('startButton');
+        const stopButton = document.getElementById('stopButton');
+        const statusButton = document.getElementById('statusButton');
+        const logOutput = document.getElementById('logOutput');
+
+        /**
+         * Función para añadir mensajes al registro de eventos.
+         * @param {string} message - El mensaje a añadir.
+         * @param {string} type - Tipo de mensaje (info, success, error).
+         */
+        function addLog(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            let colorClass = 'text-gray-300'; // Color por defecto
+
+            switch (type) {
+                case 'success':
+                    colorClass = 'text-green-400';
+                    break;
+                case 'error':
+                    colorClass = 'text-red-400';
+                    break;
+                case 'warning':
+                    colorClass = 'text-yellow-400';
+                    break;
+            }
+
+            logOutput.innerHTML += `<span class="${colorClass}">[${timestamp}] ${message}</span>\n`;
+            logOutput.scrollTop = logOutput.scrollHeight; // Desplazar al final
+        }
+
+        /**
+         * Función genérica para enviar solicitudes al "backend" simulado.
+         * @param {string} action - La acción a realizar (e.g., 'start', 'stop', 'status').
+         * @returns {Promise<any>} - Una promesa que resuelve con la respuesta del backend.
+         */
+        async function sendBackendRequest(action) {
+            const serverIp = serverIpInput.value;
+            const serverPort = serverPortInput.value;
+            // Esta URL sería la URL de tu API de backend real.
+            // Por ejemplo: 'http://localhost:3000/api/minecraft'
+            const backendApiUrl = `http://${serverIp}:${serverPort}/api/minecraft`; // URL de ejemplo, DEBES cambiarla
+
+            addLog(`Enviando solicitud de '${action}' a ${backendApiUrl}...`, 'info');
+
+            try {
+                // Simulamos una llamada a la API de un backend.
+                // En un escenario real, aquí harías un 'fetch' a tu servidor real.
+                // Ejemplo de fetch real (descomenta y adapta si tienes un backend):
+                /*
+                const response = await fetch(backendApiUrl, {
+                    method: 'POST', // O 'GET' dependiendo de tu API
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        action: action,
+                        // Aquí podrías enviar otros datos como credenciales si tu backend las requiere
+                    }),
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || `Error HTTP: ${response.status}`);
+                }
+
+                const data = await response.json();
+                addLog(`Respuesta del backend para '${action}': ${JSON.stringify(data)}`, 'success');
+                return data;
+                */
+
+                // Simulación de respuesta del backend para fines de demostración
+                return new Promise(resolve => {
+                    setTimeout(() => {
+                        let result = {};
+                        switch (action) {
+                            case 'start':
+                                result = { status: 'success', message: 'Servidor iniciado (simulado).' };
+                                addLog(result.message, 'success');
+                                break;
+                            case 'stop':
+                                result = { status: 'success', message: 'Servidor detenido (simulado).' };
+                                addLog(result.message, 'success');
+                                break;
+                            case 'status':
+                                result = { status: 'success', server_status: 'Online (simulado)', players_online: Math.floor(Math.random() * 10), max_players: 20 };
+                                addLog(`Estado del servidor (simulado): ${result.server_status}, Jugadores: ${result.players_online}/${result.max_players}`, 'info');
+                                break;
+                            default:
+                                result = { status: 'error', message: 'Acción no reconocida.' };
+                                addLog(result.message, 'error');
+                        }
+                        resolve(result);
+                    }, 1500); // Simula un retardo de red
+                });
+
+            } catch (error) {
+                addLog(`Error al enviar solicitud para '${action}': ${error.message}`, 'error');
+                console.error(`Error en sendBackendRequest (${action}):`, error);
+                throw error; // Re-lanza el error para manejo posterior si es necesario
+            }
+        }
+
+        // --- Manejadores de eventos de los botones ---
+
+        startButton.addEventListener('click', async () => {
+            addLog("Intentando iniciar el servidor...");
+            await sendBackendRequest('start');
+        });
+
+        stopButton.addEventListener('click', async () => {
+            addLog("Intentando detener el servidor...");
+            await sendBackendRequest('stop');
+        });
+
+        statusButton.addEventListener('click', async () => {
+            addLog("Solicitando estado del servidor...");
+            await sendBackendRequest('status');
+        });
+
+        // Mensaje inicial en el log
+        addLog("Interfaz de gestión de servidor Minecraft cargada. Recuerda que necesitas un backend.", 'warning');
+
+    </script>
+</body>
+</html>
